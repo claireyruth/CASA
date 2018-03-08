@@ -1,0 +1,101 @@
+##########################################################
+# name: claire mcnellan
+# purpose: General cleaning code that can be edited 
+# for each year
+# date: Mar 1, 2018
+# last updated: Mar 7,2018
+##########################################################
+##########################################################
+
+rm(list = ls())
+ls()
+getwd()
+setwd("P:/")
+library("ggplot2")
+library("dplyr")
+library("foreign")
+
+#########################################################
+#########################################################
+
+### bring in data ###
+
+ALPS <- read.csv(file = "Planning, Research & Analysis/2017 ALPS/ALPS2017DataAsOf2018_03_02.csv", 
+               header = TRUE,
+               sep = ",",
+               na.strings = c("", " ", "  "),
+               colClasses = "character" %>% 
+                   mutate_at(c("q2a1", "q4a1", "q135a1", "q149a1", "q158a1", 
+                               "q107a1", "qo115", "q117a1", "q123a1"), 
+                             function(x) gsub(",|", "", x)) %>%
+                   mutate_at(c("qo115"), 
+                             function(x) gsub("~|", "", x))   
+)
+ALPS <- as_tibble(ALPS)
+
+#########################################################
+#########################################################
+
+### BASIC PROGRAM INFO ###
+
+# Program ID #
+
+ALPS <- ALPS %>% mutate(prog_id = as.numeric(ALPS$q2a1), state = ALPS$ql31, city = ALPS$q2a3, 
+                        year_start = q4a1, model = ALPS$qv6, census_pop = ALPS$qv7,
+                        urbanicity = ALPS$qv8) ## State is Unique to 2017, pull from 6-mo code for prev yrs
+
+
+## Correct wrong program IDs and names ##
+# ALPS %>% filter(prog_id > 19999 | prog_id < 10000) %>% View 
+
+
+## Correct wrong program IDs and names ##
+# ALPS %>% filter(year_start > 2017 | prog_id< 1977) %>% View # remove the comment marker here and run
+
+#########################################################
+#########################################################
+
+### CLEANING ### 
+
+# To avoid double count, look for locals that didn't need  #
+# to respond because their state responds for them 
+
+aggregate_states <- c("NH", "CT", "DE", "FL", "ME", 
+                      "NC", "RI", "SC", "UT", "VT")
+
+LOCALS.TO.DROP <-  filter(ALPS, ALPS$state %in% aggregate_states)
+dups <- LOCALS.TO.DROP %>% count(state)
+dups
+
+# Drop locals that shouldn't have responded ## EDIT AS NEEDED ##
+# ALPS <- filter(ALPS, ALPS$q2a1 != "") 
+
+#########################################################
+#########################################################
+
+### KEY INDICATORS ###
+
+
+# kids served (s4, q4), new kids (s4, q 17?), cases closed (s4, q24)
+ALPS <- ALPS %>% mutate(kid_served = as.numeric(q135a1), 
+                        kids_new = as.numeric(q149a1),
+                        cases_closed = as.numeric(q158a1))
+
+# total vols, vol hours (sect 3,  9), new vols (s 3 q 10), vols departed (s 3, 16)        
+ALPS <- ALPS %>% mutate(vols_tot = as.numeric(q107a1), vol_hrs = as.numeric(qo115), 
+                        vols_new = as.numeric(q117a1), vols_departed = as.numeric(q123a1))
+
+#########################################################
+#########################################################
+
+### FINANCIALS ###
+
+ALPS <- ALPS %>% mutate(expenses = as.numeric(q21a1), revenue = as.numeric(q23a29))
+
+
+#########################################################
+#########################################################
+
+## Save a version with grantees ##
+write.csv(ALPS, paste0("Planning, Research & Analysis/2017 ALPS/DataCleanedMinusGrantees", ".csv"))
+
